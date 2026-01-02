@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+import { NextFunction, Request, Response } from 'express';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -10,6 +11,7 @@ async function bootstrap() {
     // Enable CORS
     app.enableCors({
         origin: 'https://test-frontend.vvowhz.easypanel.host',
+        // origin: 'http://localhost:3000',
         credentials: true,
     });
 
@@ -21,6 +23,12 @@ async function bootstrap() {
             transform: true,
         }),
     );
+
+    // Handle root route specifically before setting global prefix
+    const router = app.getHttpAdapter().getInstance();
+    router.get('/', (req: Request, res: Response) => {
+        res.send('backend is running 1.0.0');
+    });
 
     // Global prefix
     app.setGlobalPrefix('api');
