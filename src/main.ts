@@ -8,21 +8,11 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
 
     // Enable CORS
-    const corsOrigin = configService.get('CORS_ORIGIN');
-    
-    // Parse the CORS_ORIGIN to handle multiple origins
-    const allowedOrigins = corsOrigin === '*' 
-        ? true 
-        : corsOrigin?.split(',').map(origin => origin.trim()) || ['http://localhost:3000'];
-    
     app.enableCors({
-        origin: allowedOrigins,
-        credentials: corsOrigin !== '*',
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-        preflightContinue: false,
-        optionsSuccessStatus: 204,
+        origin: configService.get('CORS_ORIGIN') || 'http://localhost:3000',
+        credentials: true,
     });
+
     // Global validation pipe
     app.useGlobalPipes(
         new ValidationPipe({
@@ -39,7 +29,7 @@ async function bootstrap() {
     await app.listen(port);
 
     console.log(`🚀 Application is running on: http://localhost:${port}`);
-    console.log(`📊 GraphQL Playground: http://localhost:${port}/api/graphql`);
+    console.log(`📊 GraphQL Playground: http://localhost:${port}/graphql`);
 }
 
 bootstrap();
