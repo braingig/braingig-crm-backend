@@ -8,16 +8,25 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
 
     // Enable CORS
-    // app.enableCors({
-    //     origin: configService.get('CORS_ORIGIN') || 'http://localhost:3000',
-    //     credentials: true,
-    // });
-    app.enableCors({
-        origin: true,          
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-    });
+    const corsOrigin = configService.get('CORS_ORIGIN');
+    
+    if (corsOrigin === '*') {
+        // For production with wildcard, cannot use credentials
+        app.enableCors({
+            origin: true,
+            credentials: false,
+            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+        });
+    } else {
+        // For specific origins, can use credentials
+        app.enableCors({
+            origin: corsOrigin || 'http://localhost:3000',
+            credentials: true,
+            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+        });
+    }
     // Global validation pipe
     app.useGlobalPipes(
         new ValidationPipe({
