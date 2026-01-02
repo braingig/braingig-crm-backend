@@ -9,7 +9,7 @@ async function bootstrap() {
 
     // Enable CORS
     app.enableCors({
-        origin: configService.get('CORS_ORIGIN') || 'http://localhost:3000',
+        origin: 'https://test-frontend.vvowhz.easypanel.host',
         credentials: true,
     });
 
