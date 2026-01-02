@@ -4,7 +4,13 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    // const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create(AppModule, {
+    cors: {
+      origin: true, // reflect request origin
+      credentials: true,
+    },
+  });
     const configService = app.get(ConfigService);
 
     // Enable CORS
@@ -12,21 +18,6 @@ async function bootstrap() {
     //     origin: configService.get('CORS_ORIGIN') || 'http://localhost:3000',
     //     credentials: true,
     // });
-
-    app.enableCors({
-        origin: (origin, callback) => {
-            const allowedOrigin = configService.get('CORS_ORIGIN');
-
-            if (!origin) return callback(null, true); // allow server-to-server
-            if (allowedOrigin === '*') return callback(null, true);
-            if (allowedOrigin?.split(',').includes(origin)) {
-                return callback(null, true);
-            }
-
-            callback(new Error('Not allowed by CORS'));
-        },
-        credentials: true,
-    });
 
 
     // Global validation pipe
