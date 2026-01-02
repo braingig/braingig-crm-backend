@@ -10,23 +10,19 @@ async function bootstrap() {
     // Enable CORS
     const corsOrigin = configService.get('CORS_ORIGIN');
     
-    if (corsOrigin === '*') {
-        // For production with wildcard, cannot use credentials
-        app.enableCors({
-            origin: true,
-            credentials: false,
-            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
-        });
-    } else {
-        // For specific origins, can use credentials
-        app.enableCors({
-            origin: corsOrigin || 'http://localhost:3000',
-            credentials: true,
-            methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-            allowedHeaders: ['Content-Type', 'Authorization'],
-        });
-    }
+    // Parse the CORS_ORIGIN to handle multiple origins
+    const allowedOrigins = corsOrigin === '*' 
+        ? true 
+        : corsOrigin?.split(',').map(origin => origin.trim()) || ['http://localhost:3000'];
+    
+    app.enableCors({
+        origin: allowedOrigins,
+        credentials: corsOrigin !== '*',
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
+    });
     // Global validation pipe
     app.useGlobalPipes(
         new ValidationPipe({

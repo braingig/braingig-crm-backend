@@ -31,6 +31,7 @@ import { ActivityModule } from './activity/activity.module';
             sortSchema: true,
             playground: true,
             context: ({ req, res }) => ({ req, res }),
+            csrfPrevention: false,
         }),
 
         // Scheduling for cron jobs
