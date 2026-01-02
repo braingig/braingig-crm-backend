@@ -8,10 +8,26 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
 
     // Enable CORS
+    // app.enableCors({
+    //     origin: configService.get('CORS_ORIGIN') || 'http://localhost:3000',
+    //     credentials: true,
+    // });
+
     app.enableCors({
-        origin: configService.get('CORS_ORIGIN') || 'http://localhost:3000',
+        origin: (origin, callback) => {
+            const allowedOrigin = configService.get('CORS_ORIGIN');
+
+            if (!origin) return callback(null, true); // allow server-to-server
+            if (allowedOrigin === '*') return callback(null, true);
+            if (allowedOrigin?.split(',').includes(origin)) {
+                return callback(null, true);
+            }
+
+            callback(new Error('Not allowed by CORS'));
+        },
         credentials: true,
     });
+
 
     // Global validation pipe
     app.useGlobalPipes(
@@ -29,7 +45,7 @@ async function bootstrap() {
     await app.listen(port);
 
     console.log(`🚀 Application is running on: http://localhost:${port}`);
-    console.log(`📊 GraphQL Playground: http://localhost:${port}/graphql`);
+    console.log(`📊 GraphQL Playground: http://localhost:${port}/api/graphql`);
 }
 
 bootstrap();
