@@ -21,7 +21,7 @@ env:
   RATE_LIMIT_TTL: 60
   RATE_LIMIT_MAX: 100
 
-  CORS_ORIGIN: "https://test-frontend.vvowhz.easypanel.host"
+  CORS_ORIGIN: "*"
 
 depends_on:
   - postgres
