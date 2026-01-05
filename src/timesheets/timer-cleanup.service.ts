@@ -6,7 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class TimerCleanupService {
     private readonly logger = new Logger(TimerCleanupService.name);
 
-    constructor(private prisma: PrismaService) {}
+    constructor(private prisma: PrismaService) { }
 
     // Run every 10 minutes to clean up abandoned timers (reduced frequency)
     @Cron('*/10 * * * *')
@@ -36,15 +36,25 @@ export class TimerCleanupService {
                 const timeSinceStart = now.getTime() - startTime.getTime();
 
                 // Check for recent activity before stopping
+                // const recentActivity = await (this.prisma as any).activityEvent.findFirst({
+                //     where: {
+                //         employeeId: entry.employeeId,
+                //         type: 'ACTIVE',
+                //         timestamp: {
+                //             gte: new Date(now.getTime() - 30 * 60 * 1000), // Activity in last 30 minutes
+                //         }
+                //     }
+                // });
                 const recentActivity = await (this.prisma as any).activityEvent.findFirst({
                     where: {
                         employeeId: entry.employeeId,
                         type: 'ACTIVE',
-                        timestamp: {
-                            gte: new Date(now.getTime() - 30 * 60 * 1000), // Activity in last 30 minutes
-                        }
-                    }
+                        createdAt: {
+                            gte: new Date(now.getTime() - 30 * 60 * 1000), // last 30 minutes
+                        },
+                    },
                 });
+
 
                 // If timer has been running for more than 2 hours AND no recent activity,
                 // consider it abandoned and stop it
