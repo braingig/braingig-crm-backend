@@ -194,9 +194,59 @@ export class TimesheetsService {
         }
 
         const endTime = new Date();
-        const duration = Math.floor(
+
+        // Calculate raw duration
+        let duration = Math.floor(
             (endTime.getTime() - activeEntry.startTime.getTime()) / (1000 * 60),
         );
+
+        // Fetch activity events to subtract idle time
+        const events = await this.prisma.activityEvent.findMany({
+            where: {
+                employeeId,
+                createdAt: {
+                    gte: activeEntry.startTime,
+                    lte: endTime
+                },
+                type: {
+                    in: ['IDLE', 'ACTIVE']
+                }
+            },
+            orderBy: {
+                createdAt: 'asc'
+            }
+        });
+
+        // Calculate total idle time to subtract
+        // Logic: Find IDLE -> ACTIVE pairs and sum their durations
+        // Also account for the final 60s idle threshold that triggers the pause
+        let totalIdleMinutes = 0;
+        let lastIdleTime: Date | null = null;
+        const IDLE_THRESHOLD_SECONDS = 60; // 1 minute threshold
+
+        for (const event of events) {
+            if (event.type === 'IDLE') {
+                lastIdleTime = event.createdAt;
+            } else if (event.type === 'ACTIVE' && lastIdleTime) {
+                // Found a pair: IDLE -> ACTIVE
+                // The gap between these events is the idle time
+                // Add the threshold back because the system detects idle AFTER the threshold
+                const idleGapMs = event.createdAt.getTime() - lastIdleTime.getTime();
+
+                // Add the 1 minute threshold that was "active" before detection
+                // (The frontend subtracts this, so we should too)
+                const idleMinutes = (idleGapMs / (1000 * 60)) + (IDLE_THRESHOLD_SECONDS / 60);
+
+                totalIdleMinutes += idleMinutes;
+                lastIdleTime = null;
+            }
+        }
+
+        // Subtract idle time from total duration
+        if (totalIdleMinutes > 0) {
+            console.log(`Subtracting ${totalIdleMinutes.toFixed(2)} minutes of idle time from total duration ${duration}`);
+            duration = Math.max(0, Math.floor(duration - totalIdleMinutes));
+        }
 
         const updatedEntry = await (this.prisma as any).timeEntry.update({
             where: { id: activeEntry.id },
@@ -370,9 +420,9 @@ export class TimesheetsService {
     async reportActivity(employeeId: string, type: string, metadata?: any) {
         // Log the activity event
         await this.prisma.activityEvent.create({
-            data: { 
-                employeeId, 
-                type, 
+            data: {
+                employeeId,
+                type,
                 metadata: {
                     ...metadata,
                     timestamp: new Date().toISOString()
