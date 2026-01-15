@@ -194,61 +194,9 @@ export class TimesheetsService {
         }
 
         const endTime = new Date();
-
-        // Calculate raw duration
-        let duration = Math.floor(
+        const duration = Math.floor(
             (endTime.getTime() - activeEntry.startTime.getTime()) / (1000 * 60),
         );
-
-        // Fetch activity events to calculate actual working time
-        const events = await this.prisma.activityEvent.findMany({
-            where: {
-                employeeId,
-                createdAt: {
-                    gte: activeEntry.startTime,
-                    lte: endTime
-                },
-                type: {
-                    in: ['IDLE', 'ACTIVE']
-                }
-            },
-            orderBy: {
-                createdAt: 'asc'
-            }
-        });
-
-        // Calculate actual working time by summing ACTIVE periods
-        // This is more accurate than trying to subtract idle time
-        let actualWorkingMinutes = 0;
-        let lastActiveTime: Date | null = activeEntry.startTime;
-        let wasActive = true; // Assume user starts as active
-
-        for (const event of events) {
-            if (event.type === 'IDLE' && wasActive) {
-                // User went from ACTIVE to IDLE - add the active period
-                const activeMinutes = (event.createdAt.getTime() - lastActiveTime!.getTime()) / (1000 * 60);
-                actualWorkingMinutes += Math.max(0, activeMinutes);
-                wasActive = false;
-            } else if (event.type === 'ACTIVE' && !wasActive) {
-                // User went from IDLE to ACTIVE - start new active period
-                lastActiveTime = event.createdAt;
-                wasActive = true;
-            }
-        }
-
-        // Add the final active period if user was active when timer stopped
-        if (wasActive && lastActiveTime) {
-            const finalActiveMinutes = (endTime.getTime() - lastActiveTime.getTime()) / (1000 * 60);
-            actualWorkingMinutes += Math.max(0, finalActiveMinutes);
-        }
-
-        // Use the calculated actual working time instead of raw duration
-        if (actualWorkingMinutes > 0 && actualWorkingMinutes < duration) {
-            console.log(`Using actual working time: ${actualWorkingMinutes.toFixed(2)} minutes (raw duration: ${duration} minutes)`);
-            duration = Math.max(0, Math.floor(actualWorkingMinutes));
-        } else {
-            console.log(`Using raw duration: ${duration} minutes (no significant idle time detected)`);
-        }
 
         const updatedEntry = await (this.prisma as any).timeEntry.update({
             where: { id: activeEntry.id },
@@ -422,9 +370,9 @@ export class TimesheetsService {
     async reportActivity(employeeId: string, type: string, metadata?: any) {
         // Log the activity event
         await this.prisma.activityEvent.create({
-            data: {
-                employeeId,
-                type,
+            data: { 
+                employeeId, 
+                type, 
                 metadata: {
                     ...metadata,
                     timestamp: new Date().toISOString()
