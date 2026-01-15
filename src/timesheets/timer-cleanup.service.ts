@@ -8,92 +8,7 @@ export class TimerCleanupService {
 
     constructor(private prisma: PrismaService) { }
 
-    // Run every 10 minutes to clean up abandoned timers (reduced frequency)
-    @Cron('*/10 * * * *')
-    async cleanupAbandonedTimers() {
-        try {
-            // Find all active time entries (entries without end time)
-            const activeEntries = await (this.prisma as any).timeEntry.findMany({
-                where: {
-                    endTime: null,
-                },
-                include: {
-                    employee: {
-                        select: {
-                            id: true,
-                            name: true,
-                            email: true,
-                        },
-                    },
-                },
-            });
-
-            const now = new Date();
-            const abandonedThreshold = 2 * 60 * 60 * 1000; // 2 hours in milliseconds (increased from 30 minutes)
-
-            for (const entry of activeEntries) {
-                const startTime = new Date(entry.startTime);
-                const timeSinceStart = now.getTime() - startTime.getTime();
-
-                // Check for recent activity before stopping
-                // const recentActivity = await (this.prisma as any).activityEvent.findFirst({
-                //     where: {
-                //         employeeId: entry.employeeId,
-                //         type: 'ACTIVE',
-                //         timestamp: {
-                //             gte: new Date(now.getTime() - 30 * 60 * 1000), // Activity in last 30 minutes
-                //         }
-                //     }
-                // });
-                const recentActivity = await (this.prisma as any).activityEvent.findFirst({
-                    where: {
-                        employeeId: entry.employeeId,
-                        type: 'ACTIVE',
-                        createdAt: {
-                            gte: new Date(now.getTime() - 30 * 60 * 1000), // last 30 minutes
-                        },
-                    },
-                });
-
-
-                // If timer has been running for more than 2 hours AND no recent activity,
-                // consider it abandoned and stop it
-                if (timeSinceStart > abandonedThreshold && !recentActivity) {
-                    const duration = Math.floor(timeSinceStart / (1000 * 60)); // Convert to minutes
-
-                    await (this.prisma as any).timeEntry.update({
-                        where: { id: entry.id },
-                        data: {
-                            endTime: now,
-                            duration,
-                        },
-                    });
-
-                    // Update task time spent if task is associated
-                    if (entry.taskId) {
-                        await (this.prisma as any).task.update({
-                            where: { id: entry.taskId },
-                            data: {
-                                timeSpent: {
-                                    increment: duration,
-                                },
-                            },
-                        });
-                    }
-
-                    this.logger.log(
-                        `Auto-stopped abandoned timer for employee ${entry.employee.name} (${entry.employee.email}). Duration: ${Math.floor(duration / 60)}h ${duration % 60}m (no recent activity)`
-                    );
-                } else if (timeSinceStart > abandonedThreshold && recentActivity) {
-                    this.logger.log(
-                        `Timer active for employee ${entry.employee.name} (${entry.employee.email}) but has recent activity - not stopping`
-                    );
-                }
-            }
-        } catch (error) {
-            this.logger.error('Error during timer cleanup:', error);
-        }
-    }
+    // Removed abandoned timer logic - not needed for current time tracking implementation
 
     // Run every hour to check for very long-running timers (more than 12 hours)
     @Cron('0 * * * *')
@@ -123,7 +38,54 @@ export class TimerCleanupService {
 
                 // If timer has been running for more than 12 hours, stop it
                 if (timeSinceStart > longThreshold) {
-                    const duration = Math.floor(timeSinceStart / (1000 * 60)); // Convert to minutes
+                    // Calculate actual working time using the same logic as stopTimeEntry
+                    const rawDuration = Math.floor(timeSinceStart / (1000 * 60)); // Convert to minutes
+                    
+                    // Fetch activity events to calculate actual working time
+                    const events = await (this.prisma as any).activityEvent.findMany({
+                        where: {
+                            employeeId: entry.employeeId,
+                            createdAt: {
+                                gte: entry.startTime,
+                                lte: now
+                            },
+                            type: {
+                                in: ['IDLE', 'ACTIVE']
+                            }
+                        },
+                        orderBy: {
+                            createdAt: 'asc'
+                        }
+                    });
+
+                    // Calculate actual working time by summing ACTIVE periods
+                    let actualWorkingMinutes = 0;
+                    let lastActiveTime: Date | null = entry.startTime;
+                    let wasActive = true; // Assume user starts as active
+
+                    for (const event of events) {
+                        if (event.type === 'IDLE' && wasActive) {
+                            // User went from ACTIVE to IDLE - add the active period
+                            const activeMinutes = (event.createdAt.getTime() - lastActiveTime!.getTime()) / (1000 * 60);
+                            actualWorkingMinutes += Math.max(0, activeMinutes);
+                            wasActive = false;
+                        } else if (event.type === 'ACTIVE' && !wasActive) {
+                            // User went from IDLE to ACTIVE - start new active period
+                            lastActiveTime = event.createdAt;
+                            wasActive = true;
+                        }
+                    }
+
+                    // Add the final active period if user was active when timer stopped
+                    if (wasActive && lastActiveTime) {
+                        const finalActiveMinutes = (now.getTime() - lastActiveTime.getTime()) / (1000 * 60);
+                        actualWorkingMinutes += Math.max(0, finalActiveMinutes);
+                    }
+
+                    // Use the calculated actual working time instead of raw duration
+                    const duration = actualWorkingMinutes > 0 && actualWorkingMinutes < rawDuration 
+                        ? Math.max(0, Math.floor(actualWorkingMinutes))
+                        : rawDuration;
 
                     await (this.prisma as any).timeEntry.update({
                         where: { id: entry.id },

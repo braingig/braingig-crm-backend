@@ -200,7 +200,7 @@ export class TimesheetsService {
             (endTime.getTime() - activeEntry.startTime.getTime()) / (1000 * 60),
         );
 
-        // Fetch activity events to subtract idle time
+        // Fetch activity events to calculate actual working time
         const events = await this.prisma.activityEvent.findMany({
             where: {
                 employeeId,
@@ -217,35 +217,37 @@ export class TimesheetsService {
             }
         });
 
-        // Calculate total idle time to subtract
-        // Logic: Find IDLE -> ACTIVE pairs and sum their durations
-        // Also account for the final 60s idle threshold that triggers the pause
-        let totalIdleMinutes = 0;
-        let lastIdleTime: Date | null = null;
-        const IDLE_THRESHOLD_SECONDS = 60; // 1 minute threshold
+        // Calculate actual working time by summing ACTIVE periods
+        // This is more accurate than trying to subtract idle time
+        let actualWorkingMinutes = 0;
+        let lastActiveTime: Date | null = activeEntry.startTime;
+        let wasActive = true; // Assume user starts as active
 
         for (const event of events) {
-            if (event.type === 'IDLE') {
-                lastIdleTime = event.createdAt;
-            } else if (event.type === 'ACTIVE' && lastIdleTime) {
-                // Found a pair: IDLE -> ACTIVE
-                // The gap between these events is the idle time
-                // Add the threshold back because the system detects idle AFTER the threshold
-                const idleGapMs = event.createdAt.getTime() - lastIdleTime.getTime();
-
-                // Add the 1 minute threshold that was "active" before detection
-                // (The frontend subtracts this, so we should too)
-                const idleMinutes = (idleGapMs / (1000 * 60)) + (IDLE_THRESHOLD_SECONDS / 60);
-
-                totalIdleMinutes += idleMinutes;
-                lastIdleTime = null;
+            if (event.type === 'IDLE' && wasActive) {
+                // User went from ACTIVE to IDLE - add the active period
+                const activeMinutes = (event.createdAt.getTime() - lastActiveTime!.getTime()) / (1000 * 60);
+                actualWorkingMinutes += Math.max(0, activeMinutes);
+                wasActive = false;
+            } else if (event.type === 'ACTIVE' && !wasActive) {
+                // User went from IDLE to ACTIVE - start new active period
+                lastActiveTime = event.createdAt;
+                wasActive = true;
             }
         }
 
-        // Subtract idle time from total duration
-        if (totalIdleMinutes > 0) {
-            console.log(`Subtracting ${totalIdleMinutes.toFixed(2)} minutes of idle time from total duration ${duration}`);
-            duration = Math.max(0, Math.floor(duration - totalIdleMinutes));
+        // Add the final active period if user was active when timer stopped
+        if (wasActive && lastActiveTime) {
+            const finalActiveMinutes = (endTime.getTime() - lastActiveTime.getTime()) / (1000 * 60);
+            actualWorkingMinutes += Math.max(0, finalActiveMinutes);
+        }
+
+        // Use the calculated actual working time instead of raw duration
+        if (actualWorkingMinutes > 0 && actualWorkingMinutes < duration) {
+            console.log(`Using actual working time: ${actualWorkingMinutes.toFixed(2)} minutes (raw duration: ${duration} minutes)`);
+            duration = Math.max(0, Math.floor(actualWorkingMinutes));
+        } else {
+            console.log(`Using raw duration: ${duration} minutes (no significant idle time detected)`);
         }
 
         const updatedEntry = await (this.prisma as any).timeEntry.update({
