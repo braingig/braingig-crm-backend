@@ -194,76 +194,9 @@ export class TimesheetsService {
         }
 
         const endTime = new Date();
-
-        // Calculate raw duration
-        let duration = Math.floor(
+        const duration = Math.floor(
             (endTime.getTime() - activeEntry.startTime.getTime()) / (1000 * 60),
         );
-
-        // Fetch activity events to calculate actual work time
-        const events = await this.prisma.activityEvent.findMany({
-            where: {
-                employeeId,
-                createdAt: {
-                    gte: activeEntry.startTime,
-                    lte: endTime
-                },
-                type: {
-                    in: ['IDLE', 'ACTIVE']
-                }
-            },
-            orderBy: {
-                createdAt: 'asc'
-            }
-        });
-
-        // Calculate actual work time by summing active periods
-        // This matches the frontend logic where timer pauses after 1 minute of inactivity
-        let actualWorkMinutes = 0;
-        let lastActiveTime: Date | null = activeEntry.startTime;
-        let inIdlePeriod = false;
-        let idleStartTime: Date | null = null;
-        const IDLE_THRESHOLD_SECONDS = 60; // 1 minute threshold
-
-        for (let i = 0; i < events.length; i++) {
-            const event = events[i];
-            const nextEvent = events[i + 1];
-
-            if (event.type === 'IDLE') {
-                // When IDLE is detected, it means user was inactive for 1 minute
-                // The timer should have paused 1 minute before this IDLE event
-                if (!inIdlePeriod) {
-                    inIdlePeriod = true;
-                    idleStartTime = new Date(event.createdAt.getTime() - (IDLE_THRESHOLD_SECONDS * 1000));
-                    
-                    // Add work time from lastActiveTime to when idle period started
-                    const workPeriodMinutes = (idleStartTime.getTime() - lastActiveTime.getTime()) / (1000 * 60);
-                    if (workPeriodMinutes > 0) {
-                        actualWorkMinutes += workPeriodMinutes;
-                    }
-                }
-            } else if (event.type === 'ACTIVE') {
-                // When ACTIVE is detected, user became active again
-                if (inIdlePeriod) {
-                    inIdlePeriod = false;
-                    lastActiveTime = event.createdAt;
-                }
-            }
-        }
-
-        // Handle the case where user is still active at the end
-        if (!inIdlePeriod && lastActiveTime) {
-            const finalWorkPeriodMinutes = (endTime.getTime() - lastActiveTime.getTime()) / (1000 * 60);
-            if (finalWorkPeriodMinutes > 0) {
-                actualWorkMinutes += finalWorkPeriodMinutes;
-            }
-        }
-
-        // Use the calculated actual work time instead of raw duration
-        if (actualWorkMinutes > 0) {
-            console.log(`Raw duration: ${duration} minutes, Actual work time: ${actualWorkMinutes.toFixed(2)} minutes`);
-            duration = Math.max(0, Math.floor(actualWorkMinutes));
-        }
 
         const updatedEntry = await (this.prisma as any).timeEntry.update({
             where: { id: activeEntry.id },
@@ -435,11 +368,11 @@ export class TimesheetsService {
     }
 
     async reportActivity(employeeId: string, type: string, metadata?: any) {
-        // Log the activity event - frontend handles pause/resume logic
+        // Log the activity event
         await this.prisma.activityEvent.create({
-            data: {
-                employeeId,
-                type,
+            data: { 
+                employeeId, 
+                type, 
                 metadata: {
                     ...metadata,
                     timestamp: new Date().toISOString()
@@ -447,9 +380,43 @@ export class TimesheetsService {
             },
         });
 
-        console.log(`Activity event logged for user ${employeeId}: ${type}`);
-        // Note: Frontend handles the timer pause/resume logic automatically
-        // Backend only stores events for accurate duration calculation when timer stops
+        const activeEntry = await this.prisma.timeEntry.findFirst({
+            where: { employeeId, endTime: null },
+        });
+
+        if (!activeEntry) return;
+
+        switch (type) {
+            case 'IDLE':
+            case 'LOCK':
+                // User went idle - only stop if idle for more than 5 minutes to avoid interfering with manual control
+                if (metadata?.idleDuration && metadata.idleDuration > 5 * 60 * 1000) { // 5 minutes
+                    console.log(`User ${employeeId} idle for ${Math.floor(metadata.idleDuration / 60000)} minutes, stopping timer`);
+                    await this.stopTimeEntry(employeeId);
+                } else {
+                    console.log(`User ${employeeId} went idle briefly (${Math.floor((metadata?.idleDuration || 0) / 1000)}s), not stopping timer`);
+                }
+                break;
+
+            case 'ACTIVE':
+                // User became active again - just log it since manual restart gives user control
+                console.log(`User ${employeeId} became active again`);
+                break;
+
+            case 'TRACKING_STARTED':
+                // Activity tracking started
+                console.log(`Activity tracking started for user ${employeeId}`);
+                break;
+
+            case 'TRACKING_STOPPED':
+                // Activity tracking stopped
+                console.log(`Activity tracking stopped for user ${employeeId}`);
+                break;
+
+            default:
+                console.log(`Unknown activity type: ${type} for user ${employeeId}`);
+                break;
+        }
     }
 
 }
