@@ -435,7 +435,7 @@ export class TimesheetsService {
     }
 
     async reportActivity(employeeId: string, type: string, metadata?: any) {
-        // Log the activity event - frontend handles pause/resume logic
+        // Log the activity event
         await this.prisma.activityEvent.create({
             data: {
                 employeeId,
@@ -447,9 +447,43 @@ export class TimesheetsService {
             },
         });
 
-        console.log(`Activity event logged for user ${employeeId}: ${type}`);
-        // Note: Frontend handles the timer pause/resume logic automatically
-        // Backend only stores events for accurate duration calculation when timer stops
+        const activeEntry = await this.prisma.timeEntry.findFirst({
+            where: { employeeId, endTime: null },
+        });
+
+        if (!activeEntry) return;
+
+        switch (type) {
+            case 'IDLE':
+            case 'LOCK':
+                // User went idle - only stop if idle for more than 5 minutes to avoid interfering with manual control
+                if (metadata?.idleDuration && metadata.idleDuration > 5 * 60 * 1000) { // 5 minutes
+                    console.log(`User ${employeeId} idle for ${Math.floor(metadata.idleDuration / 60000)} minutes, stopping timer`);
+                    await this.stopTimeEntry(employeeId);
+                } else {
+                    console.log(`User ${employeeId} went idle briefly (${Math.floor((metadata?.idleDuration || 0) / 1000)}s), not stopping timer`);
+                }
+                break;
+
+            case 'ACTIVE':
+                // User became active again - just log it since manual restart gives user control
+                console.log(`User ${employeeId} became active again`);
+                break;
+
+            case 'TRACKING_STARTED':
+                // Activity tracking started
+                console.log(`Activity tracking started for user ${employeeId}`);
+                break;
+
+            case 'TRACKING_STOPPED':
+                // Activity tracking stopped
+                console.log(`Activity tracking stopped for user ${employeeId}`);
+                break;
+
+            default:
+                console.log(`Unknown activity type: ${type} for user ${employeeId}`);
+                break;
+        }
     }
 
 }
