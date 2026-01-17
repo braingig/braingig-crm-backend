@@ -37,11 +37,8 @@ export class TimesheetsResolver {
 
     @Mutation(() => TimeEntryType)
     @UseGuards(GqlAuthGuard)
-    async stopTimeEntry(
-        @CurrentUser() user: any,
-        @Args('duration') duration: number,
-    ) {
-        return this.timesheetsService.stopTimeEntry(user.userId, duration);
+    async stopTimeEntry(@CurrentUser() user: any) {
+        return this.timesheetsService.stopTimeEntry(user.userId);
     }
 
     @Query(() => [TimesheetType])
