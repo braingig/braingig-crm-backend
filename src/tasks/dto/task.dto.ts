@@ -45,6 +45,11 @@ export class CreateTaskInput {
     @IsOptional()
     @IsNumber()
     estimatedTime?: number;
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsString()
+    parentTaskId?: string;
 }
 
 @InputType()
@@ -152,6 +157,12 @@ export class TaskType {
 
     @Field({ nullable: true })
     estimatedTime?: number;
+
+    @Field({ nullable: true })
+    parentTaskId?: string;
+
+    @Field(() => [TaskType], { nullable: true })
+    subTasks?: TaskType[];
 
     @Field()
     createdAt: Date;

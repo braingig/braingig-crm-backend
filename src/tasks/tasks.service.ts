@@ -17,6 +17,7 @@ export class TasksService {
             startDate?: Date;
             dueDate?: Date;
             estimatedTime?: number;
+            parentTaskId?: string;
         },
     ) {
         return this.prisma.task.create({
@@ -40,6 +41,17 @@ export class TasksService {
                         email: true,
                     },
                 },
+                subTasks: {
+                    include: {
+                        assignedTo: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                            },
+                        },
+                    },
+                },
             },
         });
     }
@@ -52,6 +64,7 @@ export class TasksService {
     }) {
         return this.prisma.task.findMany({
             where: {
+                parentTaskId: null, // Only get parent tasks
                 ...(filters?.projectId && { projectId: filters.projectId }),
                 ...(filters?.assignedToId && { assignedToId: filters.assignedToId }),
                 ...(filters?.status && { status: filters.status }),
@@ -75,6 +88,28 @@ export class TasksService {
                     select: {
                         id: true,
                         name: true,
+                    },
+                },
+                subTasks: {
+                    include: {
+                        assignedTo: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                            },
+                        },
+                        subTasks: {
+                            include: {
+                                assignedTo: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
@@ -101,6 +136,28 @@ export class TasksService {
                         id: true,
                         name: true,
                         email: true,
+                    },
+                },
+                subTasks: {
+                    include: {
+                        assignedTo: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                            },
+                        },
+                        subTasks: {
+                            include: {
+                                assignedTo: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
                 comments: {
@@ -145,6 +202,28 @@ export class TasksService {
                         id: true,
                         name: true,
                         email: true,
+                    },
+                },
+                subTasks: {
+                    include: {
+                        assignedTo: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                            },
+                        },
+                        subTasks: {
+                            include: {
+                                assignedTo: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true,
+                                    },
+                                },
+                            },
+                        },
                     },
                 },
             },
