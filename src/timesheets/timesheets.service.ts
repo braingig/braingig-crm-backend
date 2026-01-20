@@ -182,7 +182,7 @@ export class TimesheetsService {
     }
 
     async stopTimeEntry(employeeId: string) {
-        const activeEntry = await (this.prisma as any).timeEntry.findFirst({
+        const activeEntry = await this.prisma.timeEntry.findFirst({
             where: {
                 employeeId,
                 endTime: null,
@@ -198,27 +198,27 @@ export class TimesheetsService {
             (endTime.getTime() - activeEntry.startTime.getTime()) / (1000 * 60),
         );
 
-        const updatedEntry = await (this.prisma as any).timeEntry.update({
+        const updatedEntry = await this.prisma.timeEntry.update({
             where: { id: activeEntry.id },
             data: {
                 endTime,
                 duration,
             },
-            include: {
-                task: true,
-            },
         });
 
-        // Update task time spent if task is associated
+        // Update task time spent if task is associated (best-effort; don't fail the stop)
         if (activeEntry.taskId) {
-            await (this.prisma as any).task.update({
-                where: { id: activeEntry.taskId },
-                data: {
-                    timeSpent: {
-                        increment: duration,
+            try {
+                await this.prisma.task.update({
+                    where: { id: activeEntry.taskId },
+                    data: {
+                        timeSpent: { increment: duration },
                     },
-                },
-            });
+                });
+            } catch (e) {
+                // Log but don't fail: task may have been deleted or other issue
+                console.warn('stopTimeEntry: could not update task timeSpent', activeEntry.taskId, e);
+            }
         }
 
         return updatedEntry;

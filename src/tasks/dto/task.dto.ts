@@ -124,6 +124,24 @@ export class TaskFiltersInput {
 }
 
 @ObjectType()
+export class ProjectBasicType {
+    @Field()
+    id: string;
+
+    @Field()
+    name: string;
+}
+
+@ObjectType()
+export class ParentTaskInfoType {
+    @Field()
+    id: string;
+
+    @Field()
+    title: string;
+}
+
+@ObjectType()
 export class TaskType {
     @Field()
     id: string;
@@ -163,6 +181,12 @@ export class TaskType {
 
     @Field(() => [TaskType], { nullable: true })
     subTasks?: TaskType[];
+
+    @Field(() => ProjectBasicType, { nullable: true })
+    project?: ProjectBasicType;
+
+    @Field(() => ParentTaskInfoType, { nullable: true })
+    parentTask?: ParentTaskInfoType;
 
     @Field()
     createdAt: Date;

@@ -92,6 +92,7 @@ export class TasksService {
                 },
                 subTasks: {
                     include: {
+                        project: { select: { id: true, name: true } },
                         assignedTo: {
                             select: {
                                 id: true,
@@ -101,6 +102,7 @@ export class TasksService {
                         },
                         subTasks: {
                             include: {
+                                project: { select: { id: true, name: true } },
                                 assignedTo: {
                                     select: {
                                         id: true,
@@ -235,6 +237,31 @@ export class TasksService {
             where: { id },
         });
         return true;
+    }
+
+    /**
+     * Returns a flat list of tasks (parents and subtasks) for selection in time-tracker etc.
+     * Does not filter by parentTaskId - includes both parent and subtask.
+     */
+    async findAllForSelection(filters?: {
+        projectId?: string;
+        assignedToId?: string;
+    }) {
+        return this.prisma.task.findMany({
+            where: {
+                ...(filters?.projectId && { projectId: filters.projectId }),
+                ...(filters?.assignedToId && { assignedToId: filters.assignedToId }),
+            },
+            include: {
+                parentTask: {
+                    select: { id: true, title: true },
+                },
+                project: {
+                    select: { id: true, name: true },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
     }
 
     async addComment(taskId: string, userId: string, content: string) {
