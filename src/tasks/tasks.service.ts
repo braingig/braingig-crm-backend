@@ -126,6 +126,12 @@ export class TasksService {
             where: { id },
             include: {
                 project: true,
+                parentTask: {
+                    select: {
+                        id: true,
+                        title: true,
+                    },
+                },
                 assignedTo: {
                     select: {
                         id: true,

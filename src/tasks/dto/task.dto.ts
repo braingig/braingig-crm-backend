@@ -1,6 +1,7 @@
 import { InputType, Field, ObjectType, registerEnumType } from '@nestjs/graphql';
 import { IsString, IsNotEmpty, IsOptional, IsEnum, IsDate, IsNumber } from 'class-validator';
 import { TaskStatus, TaskPriority } from '@prisma/client';
+import { UserBasicType } from '../../projects/dto/project.dto';
 
 registerEnumType(TaskStatus, { name: 'TaskStatus' });
 registerEnumType(TaskPriority, { name: 'TaskPriority' });
@@ -188,6 +189,12 @@ export class TaskType {
     @Field(() => ParentTaskInfoType, { nullable: true })
     parentTask?: ParentTaskInfoType;
 
+    @Field(() => UserBasicType, { nullable: true })
+    assignedTo?: UserBasicType;
+
+    @Field(() => [CommentType], { nullable: true })
+    comments?: CommentType[];
+
     @Field()
     createdAt: Date;
 
@@ -208,4 +215,7 @@ export class CommentType {
 
     @Field()
     createdAt: Date;
+
+    @Field(() => UserBasicType, { nullable: true })
+    user?: UserBasicType;
 }

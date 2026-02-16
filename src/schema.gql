@@ -13,6 +13,7 @@ type CommentType {
   createdAt: DateTime!
   id: String!
   taskId: String!
+  user: UserBasicType
 }
 
 input CreateProjectInput {
@@ -43,6 +44,7 @@ input CreateTaskInput {
   description: String
   dueDate: DateTime
   estimatedTime: Float
+  parentTaskId: String
   priority: TaskPriority!
   projectId: String!
   startDate: DateTime
@@ -101,6 +103,11 @@ type Mutation {
   updateUser(id: String!, input: UpdateUserInput!): UserType!
 }
 
+type ParentTaskInfoType {
+  id: String!
+  title: String!
+}
+
 type Payroll {
   baseSalary: Float!
   bonus: Float
@@ -115,6 +122,11 @@ type Payroll {
   status: String!
   totalPaid: Float!
   updatedAt: DateTime!
+}
+
+type ProjectBasicType {
+  id: String!
+  name: String!
 }
 
 input ProjectFiltersInput {
@@ -154,6 +166,7 @@ type Query {
   sales(assignedToId: String): [Sale!]!
   task(id: String!): TaskType!
   tasks(filters: TaskFiltersInput): [TaskType!]!
+  tasksForSelection(filters: TaskFiltersInput): [TaskType!]!
   timeEntries(employeeId: String, taskId: String): [TimeEntryType!]!
   timesheets(employeeId: String, endDate: DateTime, startDate: DateTime): [TimesheetType!]!
   todaySessions: [TimesheetType!]!
@@ -231,16 +244,22 @@ enum TaskStatus {
 }
 
 type TaskType {
+  assignedTo: UserBasicType
   assignedToId: String
+  comments: [CommentType!]
   createdAt: DateTime!
   description: String
   dueDate: DateTime
   estimatedTime: Float
   id: String!
+  parentTask: ParentTaskInfoType
+  parentTaskId: String
   priority: TaskPriority!
+  project: ProjectBasicType
   projectId: String!
   startDate: DateTime
   status: TaskStatus!
+  subTasks: [TaskType!]
   timeSpent: Float!
   title: String!
   updatedAt: DateTime!
