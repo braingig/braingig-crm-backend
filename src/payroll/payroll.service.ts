@@ -33,8 +33,12 @@ export class PayrollService {
                 },
             });
 
-            const totalMinutes = timeEntries.reduce((sum, entry) => sum + entry.duration, 0);
-            hoursWorked = totalMinutes / 60;
+            // TimeEntry.duration: new entries in seconds; old entries in minutes
+            const totalSeconds = timeEntries.reduce((sum, entry) => {
+                const d = entry.duration ?? 0;
+                return sum + (d >= 60 ? d : d * 60);
+            }, 0);
+            hoursWorked = totalSeconds / 3600;
             baseSalary = hoursWorked * employee.salaryAmount;
         }
 

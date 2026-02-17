@@ -96,7 +96,7 @@ type Mutation {
   register(input: RegisterInput!): AuthResponse!
   reportActivity(metadata: JSON, type: String!): Boolean!
   startTimeEntry(input: StartTimeEntryInput!): TimeEntryType!
-  stopTimeEntry: TimeEntryType!
+  stopTimeEntry(effectiveDurationSeconds: Int): TimeEntryType!
   updateEmployeeWorkType(workType: String!): EmployeeType!
   updateProject(id: String!, input: UpdateProjectInput!): ProjectType!
   updateTask(id: String!, input: UpdateTaskInput!): TaskType!

@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { GraphQLJSON } from '../common/scalars/json.scalar';
 import { UseGuards } from '@nestjs/common';
 import { TimesheetsService } from './timesheets.service';
@@ -37,8 +37,12 @@ export class TimesheetsResolver {
 
     @Mutation(() => TimeEntryType)
     @UseGuards(GqlAuthGuard)
-    async stopTimeEntry(@CurrentUser() user: any) {
-        return this.timesheetsService.stopTimeEntry(user.userId);
+    async stopTimeEntry(
+        @CurrentUser() user: any,
+        @Args('effectiveDurationSeconds', { type: () => Int, nullable: true })
+        effectiveDurationSeconds?: number,
+    ) {
+        return this.timesheetsService.stopTimeEntry(user.userId, effectiveDurationSeconds);
     }
 
     @Query(() => [TimesheetType])

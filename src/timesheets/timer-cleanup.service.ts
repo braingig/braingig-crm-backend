@@ -59,30 +59,31 @@ export class TimerCleanupService {
                 // If timer has been running for more than 2 hours AND no recent activity,
                 // consider it abandoned and stop it
                 if (timeSinceStart > abandonedThreshold && !recentActivity) {
-                    const duration = Math.floor(timeSinceStart / (1000 * 60)); // Convert to minutes
+                    const durationSeconds = Math.floor(timeSinceStart / 1000);
+                    const durationMinutes = Math.floor(durationSeconds / 60);
 
                     await (this.prisma as any).timeEntry.update({
                         where: { id: entry.id },
                         data: {
                             endTime: now,
-                            duration,
+                            duration: durationSeconds,
                         },
                     });
 
-                    // Update task time spent if task is associated
+                    // Update task time spent if task is associated (task.timeSpent is in minutes)
                     if (entry.taskId) {
                         await (this.prisma as any).task.update({
                             where: { id: entry.taskId },
                             data: {
                                 timeSpent: {
-                                    increment: duration,
+                                    increment: durationMinutes,
                                 },
                             },
                         });
                     }
 
                     this.logger.log(
-                        `Auto-stopped abandoned timer for employee ${entry.employee.name} (${entry.employee.email}). Duration: ${Math.floor(duration / 60)}h ${duration % 60}m (no recent activity)`
+                        `Auto-stopped abandoned timer for employee ${entry.employee.name} (${entry.employee.email}). Duration: ${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60}m (no recent activity)`
                     );
                 } else if (timeSinceStart > abandonedThreshold && recentActivity) {
                     this.logger.log(
@@ -123,30 +124,31 @@ export class TimerCleanupService {
 
                 // If timer has been running for more than 12 hours, stop it
                 if (timeSinceStart > longThreshold) {
-                    const duration = Math.floor(timeSinceStart / (1000 * 60)); // Convert to minutes
+                    const durationSeconds = Math.floor(timeSinceStart / 1000);
+                    const durationMinutes = Math.floor(durationSeconds / 60);
 
                     await (this.prisma as any).timeEntry.update({
                         where: { id: entry.id },
                         data: {
                             endTime: now,
-                            duration,
+                            duration: durationSeconds,
                         },
                     });
 
-                    // Update task time spent if task is associated
+                    // Update task time spent if task is associated (task.timeSpent is in minutes)
                     if (entry.taskId) {
                         await (this.prisma as any).task.update({
                             where: { id: entry.taskId },
                             data: {
                                 timeSpent: {
-                                    increment: duration,
+                                    increment: durationMinutes,
                                 },
                             },
                         });
                     }
 
                     this.logger.warn(
-                        `Auto-stopped very long timer for employee ${entry.employee.name} (${entry.employee.email}). Duration: ${Math.floor(duration / 60)} hours ${duration % 60} minutes`
+                        `Auto-stopped very long timer for employee ${entry.employee.name} (${entry.employee.email}). Duration: ${Math.floor(durationMinutes / 60)} hours ${durationMinutes % 60} minutes`
                     );
                 }
             }

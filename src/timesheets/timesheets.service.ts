@@ -181,7 +181,7 @@ export class TimesheetsService {
         });
     }
 
-    async stopTimeEntry(employeeId: string) {
+    async stopTimeEntry(employeeId: string, effectiveDurationSeconds?: number) {
         const activeEntry = await this.prisma.timeEntry.findFirst({
             where: {
                 employeeId,
@@ -194,25 +194,32 @@ export class TimesheetsService {
         }
 
         const endTime = new Date();
-        const duration = Math.floor(
-            (endTime.getTime() - activeEntry.startTime.getTime()) / (1000 * 60),
-        );
+
+        // Store duration in SECONDS so we can show "2m 16s" (not just "2m 0s").
+        let durationSeconds: number;
+        if (typeof effectiveDurationSeconds === 'number' && effectiveDurationSeconds >= 0) {
+            durationSeconds = Math.floor(effectiveDurationSeconds);
+        } else {
+            durationSeconds = Math.floor(
+                (endTime.getTime() - activeEntry.startTime.getTime()) / 1000,
+            );
+        }
 
         const updatedEntry = await this.prisma.timeEntry.update({
             where: { id: activeEntry.id },
             data: {
                 endTime,
-                duration,
+                duration: durationSeconds,
             },
         });
 
-        // Update task time spent if task is associated (best-effort; don't fail the stop)
+        // Task.timeSpent is in minutes; increment by seconds / 60
         if (activeEntry.taskId) {
             try {
                 await this.prisma.task.update({
                     where: { id: activeEntry.taskId },
                     data: {
-                        timeSpent: { increment: duration },
+                        timeSpent: { increment: Math.floor(durationSeconds / 60) },
                     },
                 });
             } catch (e) {
