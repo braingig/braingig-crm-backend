@@ -251,11 +251,11 @@ export class TimesheetsService {
         });
     }
 
-    async getTimeEntries(employeeId?: string, taskId?: string) {
+    async getTimeEntries(employeeId?: string, taskId?: string, taskIds?: string[]) {
         return (this.prisma as any).timeEntry.findMany({
             where: {
                 ...(employeeId && { employeeId }),
-                ...(taskId && { taskId }),
+                ...(taskIds?.length ? { taskId: { in: taskIds } } : taskId && { taskId }),
             },
             include: {
                 employee: {

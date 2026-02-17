@@ -56,8 +56,9 @@ export class TimesheetsResolver {
     async timeEntries(
         @Args('employeeId', { nullable: true }) employeeId?: string,
         @Args('taskId', { nullable: true }) taskId?: string,
+        @Args('taskIds', { type: () => [String], nullable: true }) taskIds?: string[],
     ) {
-        return this.timesheetsService.getTimeEntries(employeeId, taskId);
+        return this.timesheetsService.getTimeEntries(employeeId, taskId, taskIds);
     }
 
     @Query(() => TimeEntryType, { nullable: true })
