@@ -1,6 +1,6 @@
 import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { GraphQLJSON } from '../common/scalars/json.scalar';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, BadRequestException } from '@nestjs/common';
 import { TimesheetsService } from './timesheets.service';
 import { GqlAuthGuard } from '../auth/guards/gql-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -42,7 +42,11 @@ export class TimesheetsResolver {
         @Args('effectiveDurationSeconds', { type: () => Int, nullable: true })
         effectiveDurationSeconds?: number,
     ) {
-        return this.timesheetsService.stopTimeEntry(user.userId, effectiveDurationSeconds);
+        const result = await this.timesheetsService.stopTimeEntry(user.userId, effectiveDurationSeconds);
+        if (result == null) {
+            throw new BadRequestException('No active timer found');
+        }
+        return result;
     }
 
     @Query(() => [TimesheetType])

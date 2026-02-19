@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { User, UserRole } from '@prisma/client';
 
@@ -58,6 +58,7 @@ export class UsersService {
         id: string,
         data: Partial<{
             name: string;
+            email: string;
             phone: string;
             department: string;
             skills: string[];
@@ -66,6 +67,14 @@ export class UsersService {
             status: string;
         }>,
     ) {
+        if (data.email !== undefined) {
+            const existing = await this.prisma.user.findFirst({
+                where: { email: data.email, id: { not: id } },
+            });
+            if (existing) {
+                throw new ConflictException('Email is already in use by another user');
+            }
+        }
         return this.prisma.user.update({
             where: { id },
             data,

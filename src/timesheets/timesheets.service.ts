@@ -190,7 +190,7 @@ export class TimesheetsService {
         });
 
         if (!activeEntry) {
-            throw new Error('No active timer found');
+            return null;
         }
 
         const endTime = new Date();

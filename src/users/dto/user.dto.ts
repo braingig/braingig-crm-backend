@@ -1,5 +1,5 @@
 import { InputType, Field } from '@nestjs/graphql';
-import { IsString, IsOptional, IsArray, IsNumber, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsArray, IsNumber, IsEnum, IsEmail } from 'class-validator';
 import { UserRole, SalaryType } from '@prisma/client';
 
 @InputType()
@@ -8,6 +8,11 @@ export class UpdateUserInput {
     @IsOptional()
     @IsString()
     name?: string;
+
+    @Field({ nullable: true })
+    @IsOptional()
+    @IsEmail()
+    email?: string;
 
     @Field({ nullable: true })
     @IsOptional()
